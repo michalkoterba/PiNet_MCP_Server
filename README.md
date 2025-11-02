@@ -196,6 +196,9 @@ PINET_API_KEY=your_api_key_here
 MCP_SERVER_PORT=8000
 MCP_SERVER_HOST=0.0.0.0
 
+# Logging Configuration (Optional)
+LOG_LEVEL=INFO
+
 # Tailscale Configuration (Only for docker-compose-tailscale.yml)
 # TS_AUTHKEY=tskey-auth-xxxxxxxxxxxxxxxxxxxxx
 ```
@@ -208,6 +211,7 @@ MCP_SERVER_HOST=0.0.0.0
 | `PINET_API_KEY` | Yes | - | API key for authenticating with PiNet API |
 | `MCP_SERVER_PORT` | No | `8000` | Port for the MCP server to listen on |
 | `MCP_SERVER_HOST` | No | `0.0.0.0` | Host interface to bind to (0.0.0.0 for all) |
+| `LOG_LEVEL` | No | `INFO` | Logging verbosity: DEBUG, INFO, WARNING, or ERROR |
 
 **Security Note:** Never commit your `.env` file to version control. The `.gitignore` file excludes it automatically.
 
@@ -405,6 +409,58 @@ See [OPEN_WEBUI_SETUP.md](OPEN_WEBUI_SETUP.md) for detailed integration instruct
 3. **"Invalid IP/MAC format"**
    - LLM passed incorrect format
    - This is expected validation - tools are working correctly
+   - See [Debugging LLM Parameter Issues](#debugging-llm-parameter-issues) below
+
+### Debugging LLM Parameter Issues
+
+**Issue:** LLM sometimes sends incorrect IP/MAC address formats to the MCP server
+
+The MCP server includes detailed logging to help you debug parameter formatting issues from the LLM.
+
+**Enable Debug Logging:**
+
+1. **Edit your `.env` file:**
+   ```bash
+   LOG_LEVEL=DEBUG
+   ```
+
+2. **Restart the server:**
+   ```bash
+   python -m mcp_pinet_server
+   ```
+
+3. **Watch the logs when LLM calls a tool:**
+   ```
+   2025-11-02 14:30:45 [INFO] PiNet-MCP: ======================================================================
+   2025-11-02 14:30:45 [INFO] PiNet-MCP: TOOL CALL: ping_host
+   2025-11-02 14:30:45 [INFO] PiNet-MCP:   Parameter received from LLM:
+   2025-11-02 14:30:45 [INFO] PiNet-MCP:     ip_address: '192.168.1.100 ' (type: str, length: 15)
+   2025-11-02 14:30:45 [INFO] PiNet-MCP:     repr: '192.168.1.100 '
+   2025-11-02 14:30:45 [ERROR] PiNet-MCP:   ValidationError: Invalid IP address format
+   2025-11-02 14:30:45 [INFO] PiNet-MCP: ======================================================================
+   ```
+
+**What to Look For:**
+- **Trailing spaces**: `'192.168.1.1 '` - LLM added extra whitespace
+- **Wrong separators**: `'192-168-1-1'` - Dashes instead of dots
+- **Quotes included**: `'"192.168.1.1"'` - LLM wrapped in quotes
+- **Special characters**: `'192.168.1.1\n'` - Newlines or other hidden chars
+- **MAC format issues**: `'AA BB CC DD EE FF'` - Spaces instead of colons/dashes
+
+**Save Logs to File:**
+```bash
+# Both console and file
+python -m mcp_pinet_server 2>&1 | tee mcp_debug.log
+
+# File only
+python -m mcp_pinet_server > mcp_debug.log 2>&1
+```
+
+**Available Log Levels:**
+- `DEBUG` - Most detailed, shows all API calls and internal operations
+- `INFO` - Normal operations, tool calls and responses (default)
+- `WARNING` - Only warnings and errors
+- `ERROR` - Only error messages
 
 ### Docker Container Issues
 

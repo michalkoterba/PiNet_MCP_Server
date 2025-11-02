@@ -5,6 +5,9 @@ This module implements the FastMCP server that bridges LLM applications
 with the PiNet API for network diagnostics and control.
 """
 
+import logging
+import json
+import os
 from mcp.server import FastMCP
 from .config import Config
 from .pinet_client import (
@@ -14,6 +17,18 @@ from .pinet_client import (
     ValidationError,
     NetworkError
 )
+
+# Configure logging with environment variable support
+log_level_name = os.getenv('LOG_LEVEL', 'INFO').upper()
+log_level = getattr(logging, log_level_name, logging.INFO)
+
+logging.basicConfig(
+    level=log_level,
+    format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
+logger = logging.getLogger("PiNet-MCP")
+logger.info(f"Logging level set to: {log_level_name}")
 
 # Initialize MCP server
 mcp = FastMCP("PiNet MCP Server")
@@ -72,28 +87,49 @@ def ping_host(ip_address: str) -> dict:
         >>> ping_host("8.8.8.8")
         {"ip_address": "8.8.8.8", "status": "online"}
     """
+    # Log incoming request from LLM
+    logger.info("="*70)
+    logger.info("TOOL CALL: ping_host")
+    logger.info(f"  Parameter received from LLM:")
+    logger.info(f"    ip_address: '{ip_address}' (type: {type(ip_address).__name__}, length: {len(ip_address)})")
+    logger.info(f"    repr: {repr(ip_address)}")
+
     try:
+        logger.debug(f"  Calling PiNet API: is_host_online('{ip_address}')")
         result = pinet_client.is_host_online(ip_address)
-        return {
+
+        response = {
             "ip_address": result.ip_address,
             "status": result.status
         }
+        logger.info(f"  Response: {json.dumps(response)}")
+        logger.info("="*70)
+        return response
+
     except ValidationError as e:
+        logger.error(f"  ValidationError: {str(e)}")
+        logger.info("="*70)
         return {
             "status": "error",
             "message": f"Invalid IP address format: {str(e)}"
         }
     except NetworkError as e:
+        logger.error(f"  NetworkError: {str(e)}")
+        logger.info("="*70)
         return {
             "status": "error",
             "message": f"PiNet API is unreachable: {str(e)}"
         }
     except AuthenticationError as e:
+        logger.error(f"  AuthenticationError: {str(e)}")
+        logger.info("="*70)
         return {
             "status": "error",
             "message": f"Authentication failed: {str(e)}"
         }
     except Exception as e:
+        logger.error(f"  Unexpected error: {str(e)}", exc_info=True)
+        logger.info("="*70)
         return {
             "status": "error",
             "message": f"Unexpected error: {str(e)}"
@@ -137,34 +173,58 @@ def wake_device(mac_address: str) -> dict:
         >>> wake_device("invalid-mac")
         {"status": "error", "message": "Invalid MAC address format"}
     """
+    # Log incoming request from LLM
+    logger.info("="*70)
+    logger.info("TOOL CALL: wake_device")
+    logger.info(f"  Parameter received from LLM:")
+    logger.info(f"    mac_address: '{mac_address}' (type: {type(mac_address).__name__}, length: {len(mac_address)})")
+    logger.info(f"    repr: {repr(mac_address)}")
+
     try:
+        logger.debug(f"  Calling PiNet API: wake_host('{mac_address}')")
         result = pinet_client.wake_host(mac_address)
+
         if result.success:
-            return {
+            response = {
                 "status": "success",
                 "message": result.message
             }
+            logger.info(f"  Response: {json.dumps(response)}")
+            logger.info("="*70)
+            return response
         else:
-            return {
+            response = {
                 "status": "error",
                 "message": result.message
             }
+            logger.warning(f"  Response (failed): {json.dumps(response)}")
+            logger.info("="*70)
+            return response
+
     except ValidationError as e:
+        logger.error(f"  ValidationError: {str(e)}")
+        logger.info("="*70)
         return {
             "status": "error",
             "message": f"Invalid MAC address format: {str(e)}"
         }
     except NetworkError as e:
+        logger.error(f"  NetworkError: {str(e)}")
+        logger.info("="*70)
         return {
             "status": "error",
             "message": f"PiNet API is unreachable: {str(e)}"
         }
     except AuthenticationError as e:
+        logger.error(f"  AuthenticationError: {str(e)}")
+        logger.info("="*70)
         return {
             "status": "error",
             "message": f"Authentication failed: {str(e)}"
         }
     except Exception as e:
+        logger.error(f"  Unexpected error: {str(e)}", exc_info=True)
+        logger.info("="*70)
         return {
             "status": "error",
             "message": f"Unexpected error: {str(e)}"
