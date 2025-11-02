@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # PiNet MCP Server
+  pinet-mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pinet-mcp-server
+    environment:
+      # Required: PiNet API configuration
+      - PINET_API_URL=${PINET_API_URL}
+      - PINET_API_KEY=${PINET_API_KEY}
+
+      # Server configuration
+      - MCP_SERVER_PORT=${MCP_SERVER_PORT:-8000}
+      - MCP_SERVER_HOST=0.0.0.0
+
+    # Load environment variables from .env file
+    env_file:
+      - .env
+
+    # Restart policy
+    restart: unless-stopped
+
+    # Network - share Tailscale's network namespace
+    network_mode: "service:tailscale"
+
+    # Depends on Tailscale being ready
+    depends_on:
+      - tailscale
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Tailscale sidecar container
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: pinet-mcp-tailscale
+    hostname: pinet-mcp-server
+
+    environment:
+      # Tailscale configuration
+      - TS_AUTHKEY=${TS_AUTHKEY}
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_SOCKET=/var/run/tailscale/tailscaled.sock
+      - TS_USERSPACE=true
+      - TS_ACCEPT_DNS=true
+
+      # Optional: Set extra Tailscale args
+      # - TS_EXTRA_ARGS=--advertise-tags=tag:server
+
+    volumes:
+      # Persist Tailscale state
+      - tailscale-state:/var/lib/tailscale
+      - /dev/net/tun:/dev/net/tun
+
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+
+    restart: unless-stopped
+
+    # Expose port 8000 on Tailscale network
+    ports:
+      - "${MCP_SERVER_PORT:-8000}:8000"
+
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# Volumes
+volumes:
+  tailscale-state:
+    driver: local
