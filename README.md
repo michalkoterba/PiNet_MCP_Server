@@ -554,6 +554,21 @@ If you encounter issues:
 4. Check server logs for error messages
 5. Verify PiNet API connectivity
 
+### For Developers Building Similar MCP Servers
+
+If you're implementing your own MCP server for Open WebUI, see our comprehensive implementation guide:
+
+📘 **[MCP + Open WebUI Integration Guide](docs/MCP_OPEN_WEBUI_INTEGRATION_GUIDE.md)**
+
+This guide documents:
+- ✅ What works and what doesn't (transport mechanisms, network configuration)
+- ✅ All problems encountered during development and their solutions
+- ✅ Step-by-step implementation with code examples
+- ✅ Testing strategy before Open WebUI integration
+- ✅ Common pitfalls and how to avoid them
+
+Based on real-world implementation experience with this project.
+
 ---
 
 ## Roadmap

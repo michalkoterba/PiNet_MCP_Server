@@ -40,3 +40,4 @@ Thumbs.db
 # Logs
 *.log
 /PiNet_MCP_Server.iml
+/docs/MCP_OPEN_WEBUI_INTEGRATION_GUIDE.md
